@@ -2,12 +2,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Puntos de Red · Trienergy SAS</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
-    --ink:#11161c; --panel:#171d25; --line:#283340; --line2:#1f2730;
-    --canvas:#0d1117; --paper:#eef2f4; --muted:#8a98a6; --dim:#5d6b78;
-    --link:#34d399; --link-dim:#155e4a; --amber:#f5a623; --red:#ef5350;
-    --txt:#dde5ec; --accent:#34d399;
+    --ink:#11161c;--panel:#171d25;--line:#283340;--line2:#1f2730;--canvas:#0d1117;
+    --muted:#8a98a6;--dim:#5d6b78;--link:#34d399;--link-dim:#155e4a;--amber:#f5a623;--red:#ef5350;--txt:#dde5ec;
     --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
@@ -15,8 +15,6 @@
   html,body{margin:0;background:var(--canvas);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
   body{padding:0 0 60px}
   .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
-
-  /* ── Header ── */
   header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#10151b,#0d1117)}
   .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:26px 20px 22px;max-width:1180px;margin:0 auto;flex-wrap:wrap}
   .brand{display:flex;flex-direction:column;gap:4px}
@@ -26,9 +24,16 @@
   .counts{display:flex;gap:10px;font-family:var(--mono);font-size:12px;color:var(--dim);flex-wrap:wrap}
   .counts b{color:var(--txt);font-weight:700}
 
-  /* ── Search ── */
+  .status{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;padding:9px 20px;border-bottom:1px solid var(--line2)}
+  .status .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .status.ok{color:#9fe9cd;background:rgba(52,211,153,.06)} .status.ok .dot{background:var(--link);box-shadow:0 0 7px var(--link)}
+  .status.load{color:#cdd6df;background:rgba(245,166,35,.05)} .status.load .dot{background:var(--amber);animation:pulse 1s infinite}
+  .status.error{color:#ffc4c2;background:rgba(239,83,80,.07)} .status.error .dot{background:var(--red)}
+  .status.off{color:var(--dim)} .status.off .dot{background:var(--dim)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
   .searchbar{position:sticky;top:0;z-index:30;background:rgba(13,17,23,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 0}
-  .sfield{position:relative;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:0 14px;transition:border-color .15s,box-shadow .15s}
+  .sfield{position:relative;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:0 14px;transition:.15s}
   .sfield:focus-within{border-color:var(--link);box-shadow:0 0 0 3px rgba(52,211,153,.13)}
   .sfield svg{flex:0 0 auto;color:var(--dim)}
   #q{flex:1;background:none;border:0;outline:0;color:var(--txt);font-size:16px;padding:15px 0;font-family:var(--sans)}
@@ -41,20 +46,17 @@
   .chip.on{background:var(--link-dim);border-color:var(--link);color:#d6fff0}
   .flabel{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-right:2px}
   .spacer{flex:1}
-
   .btn{font-family:var(--sans);font-size:13.5px;font-weight:600;border-radius:9px;padding:10px 15px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--txt);transition:.13s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
   .btn:hover{border-color:var(--dim)}
   .btn.primary{background:var(--link);border-color:var(--link);color:#06281d}
   .btn.primary:hover{background:#46e0a8}
   .btn.ghost{background:transparent}
 
-  /* ── Results ── */
   .meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 12px;flex-wrap:wrap}
   .resn{font-family:var(--mono);font-size:13px;color:var(--muted)}
   .resn b{color:var(--link)}
-
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:13px}
-  .card{background:var(--panel);border:1px solid var(--line2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .13s,transform .13s}
+  .card{background:var(--panel);border:1px solid var(--line2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:.13s}
   .card:hover{border-color:var(--dim);transform:translateY(-1px)}
   .ctop{display:flex;align-items:stretch}
   .port{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:74px;padding:12px 10px;background:var(--ink);border-right:1px solid var(--line2)}
@@ -68,50 +70,44 @@
   .cmeta span{display:inline-flex;align-items:center;gap:5px}
   .cmeta b{color:var(--muted);font-weight:600}
   .led{width:8px;height:8px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 6px currentColor}
-  .led.ok{color:var(--link);background:var(--link)}
-  .led.bad{color:var(--red);background:var(--red)}
-  .led.warn{color:var(--amber);background:var(--amber)}
-  .led.none{color:var(--dim);background:var(--dim);box-shadow:none}
+  .led.ok{color:var(--link);background:var(--link)} .led.bad{color:var(--red);background:var(--red)}
+  .led.warn{color:var(--amber);background:var(--amber)} .led.none{color:var(--dim);background:var(--dim);box-shadow:none}
   .obs{padding:0 13px 11px;font-size:12px;color:var(--amber);line-height:1.4}
-  .obs:empty{display:none}
   .cact{display:flex;border-top:1px solid var(--line2)}
   .cact button{flex:1;background:none;border:0;border-right:1px solid var(--line2);color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:8px;cursor:pointer;transition:.12s}
   .cact button:last-child{border-right:0}
   .cact button:hover{background:var(--ink);color:var(--txt)}
   .cact button.del:hover{color:var(--red)}
   mark{background:rgba(245,166,35,.28);color:#ffd98a;border-radius:2px;padding:0 1px}
-
   .empty{text-align:center;padding:60px 20px;color:var(--dim)}
   .empty .big{font-size:17px;color:var(--muted);margin-bottom:6px}
 
-  /* ── Modal ── */
   .ov{position:fixed;inset:0;background:rgba(5,8,11,.72);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:34px 16px;overflow:auto}
   .ov.show{display:flex}
   .modal{background:var(--panel);border:1px solid var(--line);border-radius:15px;width:100%;max-width:560px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
   .mhead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line2)}
   .mhead h3{margin:0;font-size:17px}
-  .x{background:none;border:0;color:var(--dim);font-size:24px;cursor:pointer;line-height:1}
-  .x:hover{color:var(--txt)}
+  .x{background:none;border:0;color:var(--dim);font-size:24px;cursor:pointer;line-height:1}.x:hover{color:var(--txt)}
   .mbody{padding:18px 20px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:13px}
-  .fld{display:flex;flex-direction:column;gap:6px}
-  .fld.full{grid-column:1/-1}
+  .fld{display:flex;flex-direction:column;gap:6px}.fld.full{grid-column:1/-1}
   label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  input,select,textarea{background:var(--ink);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:10px 11px;font-size:14px;font-family:var(--sans);outline:0;transition:border-color .13s}
+  input,select,textarea{background:var(--ink);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:10px 11px;font-size:14px;font-family:var(--sans);outline:0;transition:.13s}
   input:focus,select:focus,textarea:focus{border-color:var(--link)}
   textarea{resize:vertical;min-height:54px}
   .mfoot{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--line2)}
-  .hint{font-size:12px;color:var(--dim);margin-top:-4px}
-
+  .hint{font-size:12px;color:var(--dim);margin-top:-4px;line-height:1.45}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--link);color:#06281d;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:.25s;z-index:80}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--red);color:#3a0d0c}
 
-  @media(max-width:560px){
-    .head{padding:20px 16px}
-    h1{font-size:22px}
-    .grid{grid-template-columns:1fr}
-    .row{grid-template-columns:1fr}
-  }
+  /* Setup card */
+  .setup{max-width:620px;margin:40px auto;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:26px}
+  .setup h2{margin:0 0 6px;font-size:20px}
+  .setup p{color:var(--muted);font-size:14px;line-height:1.55}
+  .setup ol{color:var(--muted);font-size:13.5px;line-height:1.7;padding-left:20px}
+  .setup code{font-family:var(--mono);background:var(--ink);padding:2px 6px;border-radius:5px;color:#9fe9cd;font-size:12.5px}
+  @media(max-width:560px){.head{padding:20px 16px}h1{font-size:22px}.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
 </style>
 
 <header>
@@ -119,11 +115,12 @@
     <div class="brand">
       <span class="ey">Listado de puntos de red</span>
       <h1>Trienergy SAS · Switches</h1>
-      <span class="sub">Busca un punto, edítalo o agrega nuevos y descarga el Excel actualizado.</span>
+      <span class="sub">Base compartida en vivo: lo que edites se sincroniza para todos al instante.</span>
     </div>
     <div class="counts" id="counts"></div>
   </div>
 </header>
+<div class="status off" id="status"><span class="dot"></span><span id="statusTxt">Iniciando…</span></div>
 
 <div class="searchbar">
   <div class="wrap">
@@ -133,206 +130,255 @@
       <button class="clear" id="clear">×</button>
     </div>
     <div class="filters">
-      <span class="flabel">Switch</span>
-      <span id="swfilters"></span>
+      <span class="flabel">Switch</span><span id="swfilters"></span>
       <span class="spacer"></span>
       <button class="btn primary" id="addBtn">+ Agregar punto</button>
+      <button class="btn" id="qrBtn">▦ QR para el rack</button>
       <button class="btn" id="exportBtn">⬇ Descargar Excel</button>
+      <button class="btn" id="cfgBtn">⚙</button>
     </div>
   </div>
 </div>
 
 <div class="wrap">
-  <div class="meta">
-    <div class="resn" id="resn"></div>
-    <button class="btn ghost" id="resetBtn" style="display:none;font-size:12px;padding:7px 12px">↺ Restaurar datos originales</button>
-  </div>
+  <div class="meta"><div class="resn" id="resn"></div></div>
   <div class="grid" id="grid"></div>
 </div>
 
-<!-- Modal -->
-<div class="ov" id="ov">
-  <div class="modal">
-    <div class="mhead"><h3 id="mtitle">Agregar punto de red</h3><button class="x" id="mclose">×</button></div>
-    <div class="mbody">
-      <div class="row">
-        <div class="fld"><label>Edificio</label><input id="f_edi" placeholder="1"></div>
-        <div class="fld"><label>Switch</label><input id="f_sw" placeholder="2"></div>
-      </div>
-      <div class="row">
-        <div class="fld"><label>Puerto</label><input id="f_port" placeholder="7"></div>
-        <div class="fld"><label>Estado</label>
-          <select id="f_estado">
-            <option value="">— sin definir —</option>
-            <option>BUENO</option><option>CON FALLA</option><option>REGULAR</option>
-          </select>
-        </div>
-      </div>
-      <div class="fld full" style="margin-bottom:13px"><label>Nombre de etiqueta</label><input id="f_etiq" placeholder="DATOS 11 CAJA"></div>
-      <div class="fld full" style="margin-bottom:13px"><label>Ubicación física</label><input id="f_ubic" placeholder="CAJA - EN LA PARED AL LADO DEL ESCRITORIO"></div>
-      <div class="row">
-        <div class="fld"><label>Piso / Área</label><input id="f_piso" placeholder="PISO 1"></div>
-        <div class="fld"><label>Ubicación regleta</label><input id="f_reg" placeholder="REGLETA (3) PUERTO (11)"></div>
-      </div>
-      <div class="fld full"><label>Observaciones</label><textarea id="f_obs" placeholder="NINGUNA"></textarea></div>
+<!-- Add/Edit modal -->
+<div class="ov" id="ov"><div class="modal">
+  <div class="mhead"><h3 id="mtitle">Agregar punto de red</h3><button class="x" id="mclose">×</button></div>
+  <div class="mbody">
+    <div class="row">
+      <div class="fld"><label>Edificio</label><input id="f_edi" placeholder="1"></div>
+      <div class="fld"><label>Switch</label><input id="f_sw" placeholder="2"></div>
     </div>
-    <div class="mfoot">
-      <button class="btn ghost" id="mcancel">Cancelar</button>
-      <button class="btn primary" id="msave">Guardar punto</button>
+    <div class="row">
+      <div class="fld"><label>Puerto</label><input id="f_port" placeholder="7"></div>
+      <div class="fld"><label>Estado</label><select id="f_estado">
+        <option value="">— sin definir —</option><option>BUENO</option><option>CON FALLA</option><option>REGULAR</option>
+      </select></div>
     </div>
+    <div class="fld full" style="margin-bottom:13px"><label>Nombre de etiqueta</label><input id="f_etiq" placeholder="DATOS 11 CAJA"></div>
+    <div class="fld full" style="margin-bottom:13px"><label>Ubicación física</label><input id="f_ubic" placeholder="CAJA - PARED AL LADO DEL ESCRITORIO"></div>
+    <div class="row">
+      <div class="fld"><label>Piso / Área</label><input id="f_piso" placeholder="PISO 1"></div>
+      <div class="fld"><label>Ubicación regleta</label><input id="f_reg" placeholder="REGLETA (3) PUERTO (11)"></div>
+    </div>
+    <div class="fld full"><label>Observaciones</label><textarea id="f_obs" placeholder="NINGUNA"></textarea></div>
   </div>
-</div>
+  <div class="mfoot"><button class="btn ghost" id="mcancel">Cancelar</button><button class="btn primary" id="msave">Guardar punto</button></div>
+</div></div>
+
+<!-- QR modal -->
+<div class="ov" id="qrov"><div class="modal" style="max-width:430px">
+  <div class="mhead"><h3>Código QR para el rack</h3><button class="x" id="qrclose">×</button></div>
+  <div class="mbody" style="text-align:center">
+    <div class="fld full" style="text-align:left;margin-bottom:15px"><label>URL publicada</label>
+      <input id="qr_url" placeholder="https://tu-usuario.github.io/puntos-de-red/">
+      <div class="hint">Si abres esta página ya publicada, la URL se detecta sola.</div>
+    </div>
+    <div id="qrbox" style="display:inline-flex;align-items:center;justify-content:center;min-height:220px;min-width:220px;background:#fff;padding:14px;border-radius:12px"></div>
+  </div>
+  <div class="mfoot"><button class="btn ghost" id="qrcancel">Cerrar</button><button class="btn primary" id="qrprint">🖨 Imprimir etiqueta</button></div>
+</div></div>
+
+<!-- Config modal -->
+<div class="ov" id="cfgov"><div class="modal" style="max-width:520px">
+  <div class="mhead"><h3>Conexión a Supabase</h3><button class="x" id="cfgclose">×</button></div>
+  <div class="mbody">
+    <p class="hint" style="margin:0 0 14px">Pega aquí los datos de tu proyecto Supabase (Project Settings → API). Sirve para probar en este equipo; para publicarlo a todos usa el botón de abajo y sube el archivo a GitHub.</p>
+    <div class="fld full" style="margin-bottom:13px"><label>Project URL</label><input id="c_url" placeholder="https://xxxxxxxx.supabase.co"></div>
+    <div class="fld full"><label>anon public key</label><textarea id="c_key" placeholder="eyJhbGciOi..." style="font-family:var(--mono);font-size:12px"></textarea></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn ghost" id="cfgdl">⬇ Descargar index.html configurado</button>
+    <button class="btn primary" id="cfgsave">Conectar</button>
+  </div>
+</div></div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const SEED_DATA = {"switches":[{"edificio":"1","switch":"1","puertos":24},{"edificio":"1","switch":"2","puertos":48},{"edificio":"1","switch":"3","puertos":24},{"edificio":"1","switch":"4","puertos":24},{"edificio":"2","switch":"5","puertos":52}],"records":[{"id":1,"edificio":"1","switch":"2","puerto":"3","ubicacion":"TESORERIA - EN EL ESCRITORIO","piso":"PISO 2","etiqueta":"TESORERIA 1","regleta":"REGLETA (4) PUERTO (7)","estado":"BUENO","obs":"NINGUNA"},{"id":2,"edificio":"1","switch":"2","puerto":"5","ubicacion":"CUBICULO 2 ALMACEN","piso":"PISO 2","etiqueta":"DATOS 7 ALM CUBI 2","regleta":"REGLETA (3) PUERTO(7)","estado":"BUENO","obs":"NINGUNA"},{"id":3,"edificio":"1","switch":"2","puerto":"6","ubicacion":"CAJA - EN LA PARED AL LADO DEL ESCRITORIO","piso":"PISO 1","etiqueta":"DATOS 11 CAJA","regleta":"REGLETA (3) PUERTO (11)","estado":"BUENO","obs":"ESTE ALIMENTA UN SWICHE DE 5 PUERTOS"},{"id":4,"edificio":"1","switch":"2","puerto":"7","ubicacion":"CONTABILIDAD - EN LA PARED","piso":"PISO 2","etiqueta":"DATOS 45 CONTA","regleta":"REGLETA (5) PUERTO (21)","estado":"BUENO","obs":"NINGUNA"},{"id":5,"edificio":"1","switch":"2","puerto":"8","ubicacion":"MESA GESTION HUMANA - SOBRE EL LOCKER","piso":"PISO 2","etiqueta":"DATOS 03 TELEFONO GH","regleta":"REGLETA (1) PUERTO (22)","estado":"BUENO","obs":"SOLO VA AL TELEFONO"},{"id":6,"edificio":"1","switch":"2","puerto":"9","ubicacion":"SALA MADERA - EN EL PISO","piso":"PISO 1","etiqueta":"DATOS 04 S.MADERA","regleta":"REGLETA (3) PUERTO (4)","estado":"BUENO","obs":"NINGUNA"},{"id":7,"edificio":"1","switch":"2","puerto":"10","ubicacion":"CUBICULO 2 ALMACEN IMPRESORA","piso":"PISO 1","etiqueta":"DATOS 06 ALM CUBI 2 IMPRESORA","regleta":"REGLETA (3) PUERTO(06)","estado":"BUENO","obs":"NINGUNA"},{"id":8,"edificio":"1","switch":"2","puerto":"12","ubicacion":"JEFE DE ALMACEN - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 1","etiqueta":"DATOS 01 J.ALMACEN","regleta":"REGLETA (3) PUERTO (1)","estado":"BUENO","obs":"NINGUNA"},{"id":9,"edificio":"1","switch":"2","puerto":"14","ubicacion":"TRANSPORTE Y MAQUINARIA - EN EL ESCRITORIO","piso":"PISO 1","etiqueta":"TYM 4","regleta":"REGLETA (4) PUERTO (3)","estado":"BUENO","obs":"NINGUNA"},{"id":10,"edificio":"1","switch":"2","puerto":"15","ubicacion":"OFICINA JEFE DE COMPRA E INVENTARIO - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 29 J.COMPRAS","regleta":"REGLETA (5) PUERTO (5)","estado":"BUENO","obs":"NINGUNA"},{"id":11,"edificio":"1","switch":"2","puerto":"16","ubicacion":"TESORERIA - EN EL ESCRITORIO","piso":"2","etiqueta":"TESORERIA 2","regleta":"ESTA CON UNION AL LATERAL DEL RACK","estado":"BUENO","obs":""},{"id":12,"edificio":"1","switch":"2","puerto":"18","ubicacion":"CARTERA - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 1","etiqueta":"DATOS 16 IMP CARTERA","regleta":"REGLETA (3) PUERTO (16)","estado":"BUENO","obs":"NINGUNA"},{"id":13,"edificio":"1","switch":"2","puerto":"20","ubicacion":"DEPOSITO GH - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"DEPOSITO GH DATOS 66","regleta":"REGLETA (4) PUERTO (18)","estado":"BUENO","obs":"NINGUNA"},{"id":14,"edificio":"1","switch":"2","puerto":"22","ubicacion":"SALA ARENA - EN LA PARED","piso":"PISO 2","etiqueta":"DATOS 19 ARENA","regleta":"REGLETA (3) PUERTO (19)","estado":"BUENO","obs":"NINGUNA"},{"id":15,"edificio":"1","switch":"2","puerto":"24","ubicacion":"OFICINA JEFE DE IMPORTACIONES - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 24 J.IMPOR","regleta":"REGLETA (3) PUERTO (24)","estado":"BUENO","obs":"NINGUNA"},{"id":16,"edificio":"1","switch":"2","puerto":"25","ubicacion":"ADMIN SEDE - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 1","etiqueta":"DATOS 12 ADMIN SEDE","regleta":"REGLETA (3) PUERTO (12)","estado":"BUENO","obs":"NINGUNA"},{"id":17,"edificio":"1","switch":"2","puerto":"26","ubicacion":"MOSTRADOR - EN EL PISO","piso":"PISO 1","etiqueta":"DATOS 35","regleta":"REGLETA (5) PUERTO (11)","estado":"BUENO","obs":"NINGUNA"},{"id":18,"edificio":"1","switch":"2","puerto":"27","ubicacion":"SALA CONDUCTORES - EN LA  PARED","piso":"PISO 1","etiqueta":"DATOS 36 SCONDUCTORES","regleta":"REGLETA (5) PUERTO (12)","estado":"BUENO","obs":"NINGUNA"},{"id":19,"edificio":"1","switch":"2","puerto":"30","ubicacion":"RECEPCION - DEBAJO DEL ESCRITORIO","piso":"PISO1","etiqueta":"PC RECEPCION","regleta":"REGLETA (3) PUERTO (21)","estado":"BUENO","obs":"NINGUNA"},{"id":20,"edificio":"1","switch":"2","puerto":"31","ubicacion":"CUBICULO 5 ALMACEN","piso":"PISO 1","etiqueta":"DATOS 02 ALM CUBI 05","regleta":"REGLETA 2 PUERTO 02","estado":"BUENO","obs":"NINGUNA"},{"id":21,"edificio":"1","switch":"2","puerto":"33","ubicacion":"CUBICULO 3 ALMACEN","piso":"PISO 1","etiqueta":"DATOS10 ALM CUBI 10","regleta":"REGLETA(3) PUERTO (10)","estado":"","obs":"NINGUNA"},{"id":22,"edificio":"1","switch":"2","puerto":"34","ubicacion":"CUBICULO 6 ALMACEN","piso":"PISO 1","etiqueta":"DATOS 05 ALM.CUBI06","regleta":"REGLETA 3 PUERTO 05","estado":"BUENO","obs":"NINGUNA"},{"id":23,"edificio":"1","switch":"2","puerto":"35","ubicacion":"CUBICULO 4 ALMACEN","piso":"PISO 1","etiqueta":"DATOS 04 ALM.CUBI 4","regleta":"REGLETA 3 PUERTO 08","estado":"BUENO","obs":"NINGUNA"},{"id":24,"edificio":"1","switch":"2","puerto":"40","ubicacion":"CARTERA - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 1","etiqueta":"DATOS 09 CARTERA","regleta":"REGLETA (3) PUERTO (9)","estado":"BUENO","obs":"PRECENTAN MALA CONEXION"},{"id":25,"edificio":"1","switch":"2","puerto":"41","ubicacion":"SALA ARENA - EN EL PISO","piso":"PISO 2","etiqueta":"DATOS 20 ARENA","regleta":"REGLETA (3) PUERTO (20)","estado":"BUENO","obs":"NINGUNA"},{"id":26,"edificio":"1","switch":"2","puerto":"42","ubicacion":"JEFE SISTEMAS Y TI - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 27 J.SISTEMAS Y TI","regleta":"REGLETA (5) PUERTO (3)","estado":"BUENO","obs":"NINGUNA"},{"id":27,"edificio":"1","switch":"2","puerto":"47","ubicacion":"CUBICULO SISTEMAS - EN EL ESCRITORIO","piso":"PISO2","etiqueta":"DATOS 62 SISTEMAS","regleta":"REGLETA (4) PUERTO (14)","estado":"BUENO","obs":"ESTA CONECTADO EL ACCES POINT DECO"},{"id":28,"edificio":"1","switch":"2","puerto":"48","ubicacion":"TESORERIA EN EL ESCRITORIO","piso":"PISO2","etiqueta":"TESORERIA 4","regleta":"CONEXION AL LATERAL DE RACK","estado":"BUENO","obs":"ESTA CONECTADO AL LATERAL DEL RACK"},{"id":29,"edificio":"1","switch":"3","puerto":"2","ubicacion":"JEFE T&M - EN LA PARED","piso":"PISO 1","etiqueta":"JEFE.T&M","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"BUENO"},{"id":30,"edificio":"1","switch":"3","puerto":"4","ubicacion":"CUBICULO SISTEMAS - EN EL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 56 SISTEMAS","regleta":"REGLETA (4) PUERTO (8)","estado":"BUENO","obs":"NINGUNA"},{"id":31,"edificio":"1","switch":"3","puerto":"5","ubicacion":"TRANSPORTE Y MAQUINARIA - ESCRITORI","piso":"PISO 1","etiqueta":"TYM 3","regleta":"REGLETA (4) PUERTO (2)","estado":"BUENO","obs":"NINGUNA"},{"id":32,"edificio":"1","switch":"3","puerto":"8","ubicacion":"OFICINA JEFE DE GESTION HUMANA - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 25 G.HUMANA","regleta":"REGLETA (5) PUERTO (6)","estado":"BUENO","obs":"BUENO"},{"id":33,"edificio":"1","switch":"3","puerto":"9","ubicacion":"CUBICULO SISTEMAS - EN EL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 57","regleta":"REGLETA (4) PUERTO (9)","estado":"BUENO","obs":"NINGUNA"},{"id":34,"edificio":"1","switch":"3","puerto":"11","ubicacion":"CUBICULO SISTEMAS - EN EL ESCRITORIO","piso":"PISO 1","etiqueta":"TYM 2","regleta":"REGLETA (4) PUERTO (1)","estado":"BUENO","obs":"NINGUNA"},{"id":35,"edificio":"1","switch":"3","puerto":"12","ubicacion":"TRANSPORTE Y MAQUINARIA - EN LA PARED","piso":"PISO 1","etiqueta":"TYM 1","regleta":"REGLETA (4) PUERTO (4)","estado":"BUENO","obs":"NINGUNA"},{"id":36,"edificio":"1","switch":"3","puerto":"18","ubicacion":"CUBICULO SISTEMAS - EN EL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 53","regleta":"REGLETA (4) PUERTO (5)","estado":"BUENO","obs":"NINGUNA"},{"id":37,"edificio":"1","switch":"3","puerto":"21","ubicacion":"CUBICULO SISTEMAS - EN EL ESCRITORIO","piso":"PISO 2","etiqueta":"DATOS 58","regleta":"REGLETA (4) PUERTO (10)","estado":"BUENO","obs":"NINGUNA"},{"id":38,"edificio":"1","switch":"3","puerto":"23","ubicacion":"JEFE DE APOYO T&M","piso":"PISO 1","etiqueta":"JEFE APOYO T&M","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"NINGUNA"},{"id":39,"edificio":"1","switch":"3","puerto":"24","ubicacion":"PUERTO NO FUNCIONA","piso":"","etiqueta":"","regleta":"","estado":"CON FALLA","obs":"EL PUERTO NO FUNCIONA"},{"id":40,"edificio":"1","switch":"4","puerto":"2","ubicacion":"IMPRESORA RECEPCION","piso":"PISO 1","etiqueta":"IMPRESORA RECEPCION","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"VA DIRECTO AL SWITCH"},{"id":41,"edificio":"1","switch":"4","puerto":"4","ubicacion":"JEFE NOMINA","piso":"PISO 2","etiqueta":"DATOS 32 J.NOMINA","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"VA DIRECTO AL SWITCH"},{"id":42,"edificio":"1","switch":"4","puerto":"5","ubicacion":"OFICINA TALLER - DEBAJO DEL ESCRITORIO","piso":"PISO 1","etiqueta":"OFICINA TALLER 1","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"VA DIRECTO AL SWITCH"},{"id":43,"edificio":"1","switch":"4","puerto":"8","ubicacion":"SALA DE RACK - EN LA PARED SOBRE EL ESCRITORIO","piso":"PISO 2","etiqueta":"SISTEMAS 1","regleta":"REGLETA (5) PUERTO (1)","estado":"BUENO","obs":"NINGUNA"},{"id":44,"edificio":"1","switch":"4","puerto":"10","ubicacion":"DEPOSITO GH - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"DEPOSITO GH DATOS 65","regleta":"REGLETA (4) PUERTO (17)","estado":"BUENO","obs":"NINGUNA"},{"id":45,"edificio":"1","switch":"4","puerto":"12","ubicacion":"JEFE CONTABILIDAD","piso":"PISO 2","etiqueta":"DATOS 31 J.CONTA","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"VA DIRECTO AL SWITCH"},{"id":46,"edificio":"1","switch":"4","puerto":"13","ubicacion":"RECEPCION","piso":"PISO 1","etiqueta":"SW RECEPCION","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"VA DIRECTO AL SWITCH, ALIMENTA UN SWICH DE RECEPCION"},{"id":47,"edificio":"1","switch":"4","puerto":"17","ubicacion":"OFICINA TALLER - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"OF TALLER 2","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"VA DIRECTO AL SWITCH"},{"id":48,"edificio":"1","switch":"4","puerto":"19","ubicacion":"TESORERIA - EN EL ESCRITORIO","piso":"PISO 1","etiqueta":"TESORERIA 3","regleta":"REGLETA (4) PUERTO (13)","estado":"BUENO","obs":"NINGUNA"},{"id":49,"edificio":"1","switch":"4","puerto":"20","ubicacion":"SALA DE RACK - EN LA PARED SOBRE EL ESCRITORIO","piso":"PISO 2","etiqueta":"SISTEMAS 2","regleta":"REGLETA (1) PUERTO (20)","estado":"BUENO","obs":"NINGUNA"},{"id":50,"edificio":"1","switch":"4","puerto":"23","ubicacion":"CAHS MANAGER","piso":"PISO 2","etiqueta":"DATOS 23 CASH MANAGER","regleta":"REGLETA (3) PUERTO (23)","estado":"BUENO","obs":"NINGUNA"},{"id":51,"edificio":"1","switch":"4","puerto":"24","ubicacion":"JEFE HSEQ - EN EL PISO","piso":"PISO 1","etiqueta":"JEFE HSEQ","regleta":"DIRECTO (NO VA A REGLETA)","estado":"BUENO","obs":"NINGUNA"},{"id":52,"edificio":"2","switch":"5","puerto":"1","ubicacion":"MODULO O&G 1 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 1","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":53,"edificio":"2","switch":"5","puerto":"2","ubicacion":"ALMACEN DE HERRAMIENTAS","piso":"PISO 1","etiqueta":"ALM HERAMIENTAS","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"LLEGA A RACK CABLE GRIS Y TIENE UNION"},{"id":54,"edificio":"2","switch":"5","puerto":"3","ubicacion":"MODULO O&G 15 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 15","regleta":"REGLETA (2) PUERTO (1)","estado":"BUENO","obs":"NINGUNA"},{"id":55,"edificio":"2","switch":"5","puerto":"4","ubicacion":"OFICINA DFSE PUNTO 1","piso":"PISO 2","etiqueta":"DFSE1","regleta":"REGLETA (1) PUERTO (1)","estado":"BUENO","obs":"NINGUNA"},{"id":56,"edificio":"2","switch":"5","puerto":"5","ubicacion":"ESTACIONARIOS MODULO 2 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"ESTACIONA.MODULO 2","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":57,"edificio":"2","switch":"5","puerto":"6","ubicacion":"GERENTE APOYO REGIONAL","piso":"PISO 2","etiqueta":"G.APOYO REGIONAL","regleta":"REGLETA (2) PUERTO (2)","estado":"BUENO","obs":"NINGUNA"},{"id":58,"edificio":"2","switch":"5","puerto":"7","ubicacion":"ESTACIONARIOS MODULO 3 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"ESTACIONA.MODULO 3","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":59,"edificio":"2","switch":"5","puerto":"8","ubicacion":"ADMINISTRADOR CONTRATOS O&M - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"ADMIN CONTRA O&M","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":60,"edificio":"2","switch":"5","puerto":"9","ubicacion":"ESTACIONARIOS MODULO 5 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"ESTACIONA.MODULO 5","regleta":"CABLE DIRECTO","estado":"BUENO","obs":"NINGUNA"},{"id":61,"edificio":"2","switch":"5","puerto":"11","ubicacion":"CABLE NEGRO","piso":"","etiqueta":"","regleta":"DIRECTO SIN REGLETA","estado":"DESCONOCIDO","obs":"SE DESCONOCE EL USO"},{"id":62,"edificio":"2","switch":"5","puerto":"12","ubicacion":"CABLE NEGRO","piso":"","etiqueta":"","regleta":"DIRECTO SIN REGLETA","estado":"DESCONOCIDO","obs":"SE DESCONOCE EL USO"},{"id":63,"edificio":"2","switch":"5","puerto":"14","ubicacion":"LIBRE","piso":"LIBRE","etiqueta":"LIBRE","regleta":"LIBRE","estado":"LIBRE","obs":"LIBRE"},{"id":64,"edificio":"2","switch":"5","puerto":"15","ubicacion":"CABLE NEGRO","piso":"","etiqueta":"","regleta":"DIRECTO SIN REGLETA","estado":"DESCONOCIDO","obs":"SE DESCONOCE EL USO"},{"id":65,"edificio":"2","switch":"5","puerto":"16","ubicacion":"CABLE NEGRO","piso":"","etiqueta":"","regleta":"DIRECTO SIN REGLETA","estado":"DESCONOCIDO","obs":"SE DESCONOCE EL USO"},{"id":66,"edificio":"2","switch":"5","puerto":"17","ubicacion":"ADMINISTRADOR CONTRATOS O&M","piso":"PISO 2","etiqueta":"ADMIN O&M","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":67,"edificio":"2","switch":"5","puerto":"18","ubicacion":"MODULO O&G 3 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 3","regleta":"CABLE DIRECTO","estado":"BUENO","obs":"NINGUNA"},{"id":68,"edificio":"2","switch":"5","puerto":"19","ubicacion":"PORTERIA","piso":"PISO 1","etiqueta":"PORTERIA","regleta":"REGLETA 2 PUERTO (8)","estado":"BUENO","obs":"NINGUNA"},{"id":69,"edificio":"2","switch":"5","puerto":"20","ubicacion":"MODULO O&G 4 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 4","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":70,"edificio":"2","switch":"5","puerto":"21","ubicacion":"ESTACIONARIOS MODULO 4","piso":"PISO 2","etiqueta":"ESTACIONA.MODULO 4","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":71,"edificio":"2","switch":"5","puerto":"23","ubicacion":"ESTACIONARIOS","piso":"PISO 2","etiqueta":"IMPRESORA ESTACIONARIOS","regleta":"REGLETA (1) PUERTO (11)","estado":"BUENO","obs":"NINGUNA"},{"id":72,"edificio":"2","switch":"5","puerto":"24","ubicacion":"LIDER DE CONTRATOS DE ENERGIA - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"L.CONTRATOS ENERGIA","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":73,"edificio":"2","switch":"5","puerto":"25","ubicacion":"ESTACIONARIOS MODULO 1","piso":"PISO 2","etiqueta":"ESTACIONA.MODULO 1","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":74,"edificio":"2","switch":"5","puerto":"26","ubicacion":"SALA DE RACK - SWICHE SOBRE EL RACK","piso":"PISO 2","etiqueta":"ALIMENTACION A SWICHE 5","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"ALIMENTA EL SWICHE 5"},{"id":75,"edificio":"2","switch":"5","puerto":"27","ubicacion":"ESTACIONARIOS MODULO 6","piso":"PISO 2","etiqueta":"ESTACIONA.MODULO 6","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":76,"edificio":"2","switch":"5","puerto":"28","ubicacion":"MODULO O&G 2 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 2","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":77,"edificio":"2","switch":"5","puerto":"29","ubicacion":"GERENTE DE NEGOCIOS O&G - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"G.NEGOCIOS O&G","regleta":"REGLETA (1) PUERTO (12)","estado":"BUENO","obs":"NINGUNA"},{"id":78,"edificio":"2","switch":"5","puerto":"30","ubicacion":"OFICINA DFSE PUNTO 2","piso":"PISO 2","etiqueta":"DFSE2","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":79,"edificio":"2","switch":"5","puerto":"31","ubicacion":"CONEXION DVR","piso":"PISO 2","etiqueta":"DVR","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":80,"edificio":"2","switch":"5","puerto":"32","ubicacion":"TALLER BAHIA 3","piso":"PISO 1","etiqueta":"TALLER BAHIA 3","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":81,"edificio":"2","switch":"5","puerto":"33","ubicacion":"TALLER BAHIA 1","piso":"PISO 1","etiqueta":"TALLER BAHIA 1","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":82,"edificio":"2","switch":"5","puerto":"34","ubicacion":"TALLER QUEJAS Y RECLAMOS BAHIA 4","piso":"PISO 1","etiqueta":"TALLER BAHIA 4","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":83,"edificio":"2","switch":"5","puerto":"35","ubicacion":"LABORATORIO ELECTRICO","piso":"PISO 1","etiqueta":"LAB ELECTRICO","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":84,"edificio":"2","switch":"5","puerto":"36","ubicacion":"MODULO O&G 9 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 9","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":85,"edificio":"2","switch":"5","puerto":"37","ubicacion":"MODULO O&G 13 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 13","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":86,"edificio":"2","switch":"5","puerto":"38","ubicacion":"TALLER BAHIA 2","piso":"PISO 1","etiqueta":"TALLER BAHIA 2","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":87,"edificio":"2","switch":"5","puerto":"39","ubicacion":"MODULO O&G 11 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 11","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":88,"edificio":"2","switch":"5","puerto":"40","ubicacion":"MODULO O&G 7 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 7","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":89,"edificio":"2","switch":"5","puerto":"41","ubicacion":"ENFERMERIA","piso":"PISO 1","etiqueta":"ENFERMERIA","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":90,"edificio":"2","switch":"5","puerto":"43","ubicacion":"JEFE DE APOYO AL CLIENTE - EN LA PARED DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"J. APOYO AL CLIENTE","regleta":"REGLETA (1) PUERTO (13)","estado":"BUENO","obs":"NINGUNA"},{"id":91,"edificio":"2","switch":"5","puerto":"44","ubicacion":"SALA DE RACK - DECO SOBRE EL RACK","piso":"PISO 2","etiqueta":"DECO","regleta":"DIRECTO SIN REGLETA","estado":"BUENO","obs":"NINGUNA"},{"id":92,"edificio":"2","switch":"5","puerto":"45","ubicacion":"MODULO O&G 2 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 5","regleta":"REGLETA (1) PUERTO (17)","estado":"BUENO","obs":"NINGUNA"},{"id":93,"edificio":"2","switch":"5","puerto":"46","ubicacion":"MODULO O&G 6 - DENAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 6","regleta":"REGLETA (1) PUERTO (15)","estado":"BUENO","obs":"NINGUNA"},{"id":94,"edificio":"2","switch":"5","puerto":"47","ubicacion":"IMPRESORA O&G","piso":"PISO2","etiqueta":"IMPRESORAO&G","regleta":"REGLETA (1) PUERTO(19)","estado":"BUENO","obs":"NINGUNA"},{"id":95,"edificio":"2","switch":"5","puerto":"48","ubicacion":"MODULO O&G 8 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 8","regleta":"REGLETA (1) PUERTO (18)","estado":"BUENO","obs":"NINGUNA"},{"id":96,"edificio":"2","switch":"5","puerto":"49","ubicacion":"MODULO O&G 12 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 12","regleta":"REGLETA (1) PUERTO (21)","estado":"BUENO","obs":"NINGUNA"},{"id":97,"edificio":"2","switch":"5","puerto":"50","ubicacion":"MODULO O&G 10 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G10","regleta":"REGLETA (1) PUERTO (20)","estado":"BUENO","obs":"NINGUNA"},{"id":98,"edificio":"2","switch":"5","puerto":"51","ubicacion":"MODULO O&G 14 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 14","regleta":"REGLETA (1) PUERTO (23)","estado":"BUENO","obs":"NINGUNA"},{"id":99,"edificio":"2","switch":"5","puerto":"52","ubicacion":"MODULO O&G 16 - DEBAJO DEL ESCRITORIO","piso":"PISO 2","etiqueta":"O&G 16","regleta":"REGLETA (1) PUERTO (24)","estado":"BUENO","obs":"NINGUNA"}]};
+/* ════ PEGA AQUÍ TUS LLAVES DE SUPABASE (o usa el botón ⚙ y descarga el archivo configurado) ════ */
+const SUPABASE_URL = "https://baghpbqrziyvnzuuobfd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_agx-VnskLYXXRPGAlw_zkA_ScyZomJ_";
+/* ═══════════════════════════════════════════════════════════════════════════════════════════ */
 
-</script>
-<script>
-const COLS=[["puerto","Puerto"],["ubicacion","Ubicación fisica"],["piso","Piso/Area"],["etiqueta","Nombre de etiqueta"],["regleta","UBICACION REGLETA"],["estado","Estado"],["obs","Observaciones"]];
 const $=s=>document.querySelector(s);
-let state={records:[],switches:[],activeSw:null,nextId:1,editId:null};
+let sb=null, state={records:[],switches:[],activeSw:null,editId:null,shareUrl:''};
 
-function persist(){ try{ window.storage && window.storage.set('trienergy_red_v1',JSON.stringify({records:state.records,switches:state.switches}),false); }catch(e){} }
+function cfg(){
+  let url=SUPABASE_URL, key=SUPABASE_ANON_KEY;
+  if(!url||url.indexOf('__SUPABASE')===0){ try{const c=JSON.parse(localStorage.getItem('sb_cfg')||'{}'); url=c.url||''; key=c.key||'';}catch(e){url='';key='';} }
+  return {url,key};
+}
+function setStatus(cls,txt){ const s=$('#status'); s.className='status '+cls; $('#statusTxt').textContent=txt; }
+
 async function boot(){
-  let saved=null;
-  try{ const r=await window.storage.get('trienergy_red_v1',false); if(r&&r.value) saved=JSON.parse(r.value); }catch(e){}
-  const src= saved && saved.records ? saved : SEED_DATA;
-  state.records=src.records.map(r=>({...r}));
-  state.switches=src.switches.map(s=>({...s}));
-  state.nextId=Math.max(0,...state.records.map(r=>+r.id||0))+1;
-  $('#resetBtn').style.display = saved ? 'inline-flex':'none';
+  const {url,key}=cfg();
+  if(!url||!key){ setStatus('off','Sin configurar — toca ⚙ para conectar la base'); openCfg(true); render(); return; }
+  if(typeof supabase==='undefined'){ setStatus('error','No cargó la librería de Supabase (revisa tu conexión)'); return; }
+  try{ sb=supabase.createClient(url,key); }catch(e){ setStatus('error','URL o key inválida'); return; }
+  await load(); subscribe();
+}
+
+function norm(r){ return {id:r.id,edificio:r.edificio||'',switch:r.switch||'',puerto:r.puerto||'',ubicacion:r.ubicacion||'',piso:r.piso||'',etiqueta:r.etiqueta||'',regleta:r.regleta||'',estado:r.estado||'',obs:r.obs||''}; }
+
+async function load(){
+  setStatus('load','Cargando puntos…');
+  const {data,error}=await sb.from('puntos_red').select('*');
+  if(error){ setStatus('error','Error al leer: '+error.message); toast(error.message,1); return; }
+  state.records=(data||[]).map(norm);
+  setStatus('ok','Conectado · sincronizado en vivo · '+state.records.length+' puntos');
   renderFilters(); render();
+}
+let channel=null;
+function subscribe(){
+  try{
+    if(channel) sb.removeChannel(channel);
+    channel=sb.channel('rt_puntos').on('postgres_changes',{event:'*',schema:'public',table:'puntos_red'},()=>load()).subscribe();
+  }catch(e){}
 }
 
 function swList(){
-  const set=new Map();
-  state.switches.forEach(s=>set.set(s.switch,s));
-  state.records.forEach(r=>{ if(!set.has(r.switch)) set.set(r.switch,{edificio:r.edificio,switch:r.switch,puertos:0}); });
-  return [...set.values()].sort((a,b)=>(+a.switch)-(+b.switch));
+  const m=new Map();
+  state.records.forEach(r=>{ if(!m.has(r.switch)) m.set(r.switch,{edificio:r.edificio,switch:r.switch}); });
+  return [...m.values()].sort((a,b)=>(+a.switch)-(+b.switch));
 }
-
 function renderFilters(){
   const c=$('#swfilters'); c.innerHTML='';
   const all=document.createElement('button'); all.className='chip'+(state.activeSw==null?' on':''); all.textContent='Todos';
   all.onclick=()=>{state.activeSw=null;renderFilters();render();}; c.appendChild(all);
-  swList().forEach(s=>{
-    const b=document.createElement('button'); b.className='chip'+(state.activeSw===s.switch?' on':'');
-    b.textContent='SW '+s.switch+' · Ed '+s.edificio;
-    b.onclick=()=>{state.activeSw=s.switch;renderFilters();render();}; c.appendChild(b);
-  });
+  swList().forEach(s=>{ const b=document.createElement('button'); b.className='chip'+(state.activeSw===s.switch?' on':'');
+    b.textContent='SW '+s.switch+' · Ed '+s.edificio; b.onclick=()=>{state.activeSw=s.switch;renderFilters();render();}; c.appendChild(b); });
 }
-
-function ledClass(e){ e=(e||'').toUpperCase(); if(!e)return'none'; if(e.includes('FALLA')||e.includes('MAL'))return'bad'; if(e.includes('REGULAR')||e.includes('REVIS'))return'warn'; return'ok'; }
+function ledClass(e){e=(e||'').toUpperCase();if(!e)return'none';if(e.includes('FALLA')||e.includes('MAL'))return'bad';if(e.includes('REGULAR')||e.includes('REVIS'))return'warn';return'ok';}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
-function hl(s,q){ s=esc(s); if(!q)return s; const t=q.trim(); if(!t)return s; const re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'); return s.replace(re,'<mark>$1</mark>'); }
+function hl(s,q){s=esc(s);if(!q)return s;const t=q.trim();if(!t)return s;const re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');return s.replace(re,'<mark>$1</mark>');}
 
 function render(){
   const q=$('#q').value.trim().toLowerCase();
   let list=state.records.slice();
   if(state.activeSw!=null) list=list.filter(r=>r.switch===state.activeSw);
-  if(q){ list=list.filter(r=>['ubicacion','piso','etiqueta','regleta','estado','obs','switch','puerto','edificio'].some(k=>String(r[k]||'').toLowerCase().includes(q))); }
-  list.sort((a,b)=> (+a.switch-+b.switch) || (+a.puerto-+b.puerto));
-
+  if(q) list=list.filter(r=>['ubicacion','piso','etiqueta','regleta','estado','obs','switch','puerto','edificio'].some(k=>String(r[k]||'').toLowerCase().includes(q)));
+  list.sort((a,b)=>(+a.switch-+b.switch)||(+a.puerto-+b.puerto));
   $('#counts').innerHTML=`<span><b>${state.records.length}</b> puntos</span><span><b>${swList().length}</b> switches</span>`;
   const qd=$('#q').value.trim();
-  $('#resn').innerHTML = qd ? `<b>${list.length}</b> resultado(s) para “${esc(qd)}”` : `Mostrando <b>${list.length}</b> punto(s)`;
-  $('#clear').style.display = qd ? 'block':'none';
-
+  $('#resn').innerHTML= qd? `<b>${list.length}</b> resultado(s) para “${esc(qd)}”` : `Mostrando <b>${list.length}</b> punto(s)`;
+  $('#clear').style.display= qd?'block':'none';
   const g=$('#grid');
-  if(!list.length){ g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="big">Sin coincidencias</div>${qd?'No se encontró “'+esc(qd)+'”. Prueba otra palabra o agrégalo como nuevo punto.':'Aún no hay puntos en este switch.'}</div>`; return; }
-  g.innerHTML=list.map(r=>{
-    const led=ledClass(r.estado);
-    return `<div class="card">
-      <div class="ctop">
-        <div class="port"><span class="pl">Puerto</span><span class="pn">${esc(r.puerto)||'·'}</span><span class="sw">SW ${esc(r.switch)} · Ed ${esc(r.edificio)}</span></div>
-        <div class="cbody">
-          <p class="etiq">${hl(r.etiqueta||'(sin etiqueta)',q)}</p>
-          <div class="ubic">${hl(r.ubicacion||'—',q)}</div>
-        </div>
-      </div>
-      <div class="cmeta">
-        <span><b>Piso</b> ${hl(r.piso||'—',q)}</span>
-        <span><b>Regleta</b> ${hl(r.regleta||'—',q)}</span>
-        <span><span class="led ${led}"></span>${hl(r.estado||'sin estado',q)}</span>
-      </div>
-      ${r.obs && r.obs.toUpperCase()!=='NINGUNA' ? `<div class="obs">⚠ ${hl(r.obs,q)}</div>`:''}
-      <div class="cact"><button data-edit="${r.id}">Editar</button><button class="del" data-del="${r.id}">Eliminar</button></div>
-    </div>`;
-  }).join('');
+  if(!list.length){ g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="big">Sin coincidencias</div>${qd?'No se encontró “'+esc(qd)+'”.':'No hay puntos para mostrar.'}</div>`; return; }
+  g.innerHTML=list.map(r=>{const led=ledClass(r.estado);return `<div class="card">
+    <div class="ctop"><div class="port"><span class="pl">Puerto</span><span class="pn">${esc(r.puerto)||'·'}</span><span class="sw">SW ${esc(r.switch)} · Ed ${esc(r.edificio)}</span></div>
+    <div class="cbody"><p class="etiq">${hl(r.etiqueta||'(sin etiqueta)',q)}</p><div class="ubic">${hl(r.ubicacion||'—',q)}</div></div></div>
+    <div class="cmeta"><span><b>Piso</b> ${hl(r.piso||'—',q)}</span><span><b>Regleta</b> ${hl(r.regleta||'—',q)}</span><span><span class="led ${led}"></span>${hl(r.estado||'sin estado',q)}</span></div>
+    ${r.obs&&r.obs.toUpperCase()!=='NINGUNA'?`<div class="obs">⚠ ${hl(r.obs,q)}</div>`:''}
+    <div class="cact"><button data-edit="${r.id}">Editar</button><button class="del" data-del="${r.id}">Eliminar</button></div></div>`;}).join('');
   g.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openModal(+b.dataset.edit));
   g.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delRec(+b.dataset.del));
 }
 
-/* ── Modal ── */
 function openModal(id){
-  state.editId=id||null;
-  $('#mtitle').textContent= id?'Editar punto de red':'Agregar punto de red';
-  const r= id? state.records.find(x=>x.id===id) : null;
+  if(!sb){ toast('Primero conecta la base (⚙)',1); return; }
+  state.editId=id||null; $('#mtitle').textContent=id?'Editar punto de red':'Agregar punto de red';
+  const r=id?state.records.find(x=>x.id===id):null;
   $('#f_edi').value=r?r.edificio:(state.activeSw?(swList().find(s=>s.switch===state.activeSw)||{}).edificio||'':'');
-  $('#f_sw').value=r?r.switch:(state.activeSw||'');
-  $('#f_port').value=r?r.puerto:''; $('#f_etiq').value=r?r.etiqueta:''; $('#f_ubic').value=r?r.ubicacion:'';
-  $('#f_piso').value=r?r.piso:''; $('#f_reg').value=r?r.regleta:''; $('#f_obs').value=r?r.obs:'';
-  $('#f_estado').value= r && ['BUENO','CON FALLA','REGULAR'].includes((r.estado||'').toUpperCase())? r.estado.toUpperCase():'';
+  $('#f_sw').value=r?r.switch:(state.activeSw||''); $('#f_port').value=r?r.puerto:'';
+  $('#f_etiq').value=r?r.etiqueta:''; $('#f_ubic').value=r?r.ubicacion:''; $('#f_piso').value=r?r.piso:''; $('#f_reg').value=r?r.regleta:''; $('#f_obs').value=r?r.obs:'';
+  $('#f_estado').value= r&&['BUENO','CON FALLA','REGULAR'].includes((r.estado||'').toUpperCase())?r.estado.toUpperCase():'';
   $('#ov').classList.add('show'); setTimeout(()=>$('#f_etiq').focus(),50);
 }
 function closeModal(){ $('#ov').classList.remove('show'); state.editId=null; }
-function save(){
-  const rec={
-    edificio:$('#f_edi').value.trim()||'1', switch:$('#f_sw').value.trim(), puerto:$('#f_port').value.trim(),
-    ubicacion:$('#f_ubic').value.trim().toUpperCase(), piso:$('#f_piso').value.trim().toUpperCase(),
-    etiqueta:$('#f_etiq').value.trim().toUpperCase(), regleta:$('#f_reg').value.trim().toUpperCase(),
-    estado:$('#f_estado').value, obs:$('#f_obs').value.trim()||'NINGUNA'
-  };
-  if(!rec.switch||!rec.puerto){ toast('Indica al menos Switch y Puerto'); return; }
-  if(state.editId){ const r=state.records.find(x=>x.id===state.editId); Object.assign(r,rec); toast('Punto actualizado'); }
-  else { rec.id=state.nextId++; state.records.push(rec); 
-         if(!swList().some(s=>s.switch===rec.switch)) state.switches.push({edificio:rec.edificio,switch:rec.switch,puertos:+rec.puerto||24});
-         toast('Punto agregado'); }
-  persist(); renderFilters(); render(); closeModal();
+async function save(){
+  const rec={edificio:$('#f_edi').value.trim()||'1',switch:$('#f_sw').value.trim(),puerto:$('#f_port').value.trim(),
+    ubicacion:$('#f_ubic').value.trim().toUpperCase(),piso:$('#f_piso').value.trim().toUpperCase(),etiqueta:$('#f_etiq').value.trim().toUpperCase(),
+    regleta:$('#f_reg').value.trim().toUpperCase(),estado:$('#f_estado').value,obs:$('#f_obs').value.trim()||'NINGUNA',updated_at:new Date().toISOString()};
+  if(!rec.switch||!rec.puerto){ toast('Indica al menos Switch y Puerto',1); return; }
+  $('#msave').disabled=true;
+  let error;
+  if(state.editId){ ({error}=await sb.from('puntos_red').update(rec).eq('id',state.editId)); }
+  else { ({error}=await sb.from('puntos_red').insert(rec)); }
+  $('#msave').disabled=false;
+  if(error){ toast('No se guardó: '+error.message,1); return; }
+  toast(state.editId?'Punto actualizado':'Punto agregado'); closeModal(); await load();
 }
-function delRec(id){ const r=state.records.find(x=>x.id===id); if(!confirm(`¿Eliminar el punto ${r.switch}/${r.puerto} (${r.etiqueta||'sin etiqueta'})?`))return; state.records=state.records.filter(x=>x.id!==id); persist(); renderFilters(); render(); toast('Punto eliminado'); }
+async function delRec(id){
+  const r=state.records.find(x=>x.id===id); if(!r)return;
+  if(!confirm(`¿Eliminar el punto ${r.switch}/${r.puerto} (${r.etiqueta||'sin etiqueta'})?\nSe borra para todos.`))return;
+  const {error}=await sb.from('puntos_red').delete().eq('id',id);
+  if(error){ toast('No se eliminó: '+error.message,1); return; }
+  toast('Punto eliminado'); await load();
+}
 
-/* ── Export to Excel (one sheet per switch, original format) ── */
+/* QR */
+function openQR(){ if(!state.shareUrl&&/^https?:/.test(location.protocol)) state.shareUrl=location.href; $('#qr_url').value=state.shareUrl||''; renderQR(state.shareUrl||''); $('#qrov').classList.add('show'); }
+function renderQR(url){ const box=$('#qrbox'); box.innerHTML=''; if(!url){box.innerHTML='<div style="color:#888;font-size:13px;max-width:200px">Pega arriba la URL publicada.</div>';return;} try{new QRCode(box,{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});}catch(e){box.innerHTML='<div style="color:#c00;font-size:13px">No se pudo generar el QR.</div>';} }
+function printLabel(){
+  const url=$('#qr_url').value.trim(); if(!url){toast('Primero pega la URL',1);return;}
+  const cv=$('#qrbox').querySelector('canvas'),im=$('#qrbox').querySelector('img');
+  const data=cv?cv.toDataURL('image/png'):(im?im.src:'');
+  const w=window.open('','_blank'); if(!w){toast('Permite ventanas emergentes',1);return;}
+  w.document.write('<html><head><meta charset="utf-8"><title>Etiqueta · Puntos de red</title><style>@page{margin:14mm}body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;text-align:center;color:#11161c;margin:0;padding:24px}.card{border:2px solid #11161c;border-radius:16px;padding:28px 24px;max-width:360px;margin:0 auto}.eg{font:600 11px ui-monospace,monospace;letter-spacing:.22em;color:#0a7a55}h2{font-size:21px;margin:8px 0 16px}img{width:230px;height:230px}.inst{font-size:13px;color:#444;margin:16px 0 8px;line-height:1.4}.url{font:11px ui-monospace,monospace;color:#888;word-break:break-all}</style></head><body><div class="card"><div class="eg">TRIENERGY SAS · SISTEMAS Y TI</div><h2>Puntos de red de este rack</h2>'+(data?'<img src="'+data+'">':'')+'<div class="inst">Escanea para ver, buscar y consultar los puntos de red de este rack.</div><div class="url">'+url.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</div></div><script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script></body></html>');
+  w.document.close();
+}
+
+/* Excel export (desde lo cargado) */
 function exportXlsx(){
+  const COLS=[['puerto','Puerto'],['ubicacion','Ubicación fisica'],['piso','Piso/Area'],['etiqueta','Nombre de etiqueta'],['regleta','UBICACION REGLETA'],['estado','Estado'],['obs','Observaciones']];
   const wb=XLSX.utils.book_new();
   swList().forEach(s=>{
     const recs=state.records.filter(r=>r.switch===s.switch);
-    const maxPort=Math.max(s.puertos||0, ...recs.map(r=>+r.puerto||0), 24);
+    const maxPort=Math.max(24,...recs.map(r=>+r.puerto||0));
     const byPort={}; recs.forEach(r=>byPort[+r.puerto]=r);
-    const aoa=[];
-    aoa.push(['TRIENERGY SAS  LISTADO DE PUNTOS DE RED  ']);
-    aoa.push(['EDIFICIO : '+s.edificio+'                                                                                       SWITCH: '+s.switch]);
-    aoa.push(COLS.map(c=>c[1]));
-    for(let p=1;p<=maxPort;p++){ const r=byPort[p];
-      aoa.push(r?[p,r.ubicacion,r.piso,r.etiqueta,r.regleta,r.estado,r.obs]:[p,'','','','','','']); }
+    const aoa=[['TRIENERGY SAS  LISTADO DE PUNTOS DE RED  '],['EDIFICIO : '+s.edificio+'                                                          SWITCH: '+s.switch],COLS.map(c=>c[1])];
+    for(let p=1;p<=maxPort;p++){const r=byPort[p];aoa.push(r?[p,r.ubicacion,r.piso,r.etiqueta,r.regleta,r.estado,r.obs]:[p,'','','','','','']);}
     const ws=XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols']=[{wch:7},{wch:42},{wch:12},{wch:26},{wch:24},{wch:11},{wch:34}];
     ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:1,c:0},e:{r:1,c:6}}];
     XLSX.utils.book_append_sheet(wb,ws,'SWITCH '+s.switch);
   });
-  const d=new Date(), pad=n=>String(n).padStart(2,'0');
+  const d=new Date(),pad=n=>String(n).padStart(2,'0');
   XLSX.writeFile(wb,`Puntos_Red_Trienergy_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
   toast('Excel descargado');
 }
 
-async function resetAll(){
-  if(!confirm('Esto descarta tus cambios y vuelve al listado original. ¿Continuar?'))return;
-  try{ await window.storage.delete('trienergy_red_v1',false); }catch(e){}
-  state.activeSw=null; await boot(); toast('Datos restaurados');
+/* Config */
+function openCfg(first){ const {url,key}=cfg(); $('#c_url').value=url||''; $('#c_key').value=key||''; $('#cfgov').classList.add('show'); }
+function saveCfg(){
+  const url=$('#c_url').value.trim().replace(/\/+$/,''), key=$('#c_key').value.trim();
+  if(!url||!key){ toast('Pega URL y key',1); return; }
+  try{ localStorage.setItem('sb_cfg',JSON.stringify({url,key})); }catch(e){}
+  $('#cfgov').classList.remove('show'); boot();
+}
+async function cfgDownload(){
+  const url=$('#c_url').value.trim().replace(/\/+$/,''), key=$('#c_key').value.trim();
+  if(!url||!key){ toast('Pega URL y key primero',1); return; }
+  let src; try{ src=await (await fetch(location.href,{cache:'no-store'})).text(); }catch(e){ toast('Úsalo desde la URL publicada',1); return; }
+  src=src.replace(/const SUPABASE_URL = "[^"]*";/, ()=>'const SUPABASE_URL = "'+url+'";');
+  src=src.replace(/const SUPABASE_ANON_KEY = "[^"]*";/, ()=>'const SUPABASE_ANON_KEY = "'+key+'";');
+  const blob=new Blob([src],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='index.html'; a.click();
+  setTimeout(()=>alert('Listo: se descargó "index.html" con tus llaves de Supabase ya puestas.\n\nSúbelo a tu repositorio de GitHub (reemplazando el index.html actual). Desde ahí, todos los que entren quedan conectados a la misma base en vivo.'),200);
 }
 
-let tt; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),1900); }
+let tt; function toast(m,err){const t=$('#toast');t.textContent=m;t.className='toast show'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='toast',2200);}
 
 $('#q').oninput=render;
 $('#clear').onclick=()=>{$('#q').value='';render();$('#q').focus();};
 $('#addBtn').onclick=()=>openModal(null);
 $('#exportBtn').onclick=exportXlsx;
-$('#resetBtn').onclick=resetAll;
-$('#mclose').onclick=closeModal; $('#mcancel').onclick=closeModal;
+$('#qrBtn').onclick=openQR;
+$('#cfgBtn').onclick=()=>openCfg(false);
+$('#qr_url').oninput=e=>{state.shareUrl=e.target.value.trim();renderQR(state.shareUrl);};
+$('#qrclose').onclick=$('#qrcancel').onclick=()=>$('#qrov').classList.remove('show');
+$('#qrprint').onclick=printLabel;
+$('#qrov').onclick=e=>{if(e.target===$('#qrov'))$('#qrov').classList.remove('show');};
+$('#cfgclose').onclick=()=>$('#cfgov').classList.remove('show');
+$('#cfgsave').onclick=saveCfg; $('#cfgdl').onclick=cfgDownload;
+$('#cfgov').onclick=e=>{if(e.target===$('#cfgov'))$('#cfgov').classList.remove('show');};
+$('#mclose').onclick=$('#mcancel').onclick=closeModal;
 $('#msave').onclick=save;
 $('#ov').onclick=e=>{if(e.target===$('#ov'))closeModal();};
-document.onkeydown=e=>{ if(e.key==='Escape')closeModal(); if(e.key==='/'&&document.activeElement!==$('#q')){e.preventDefault();$('#q').focus();} };
+document.onkeydown=e=>{if(e.key==='Escape'){closeModal();$('#qrov').classList.remove('show');$('#cfgov').classList.remove('show');}if(e.key==='/'&&document.activeElement!==$('#q')){e.preventDefault();$('#q').focus();}};
 boot();
 </script>
